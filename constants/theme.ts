@@ -10,6 +10,25 @@ export const colors = {
   success: "#16a34a",
   destructive: "#dc2626",
   subscription: "#8fd1bd",
+  icon: "#081126",
+  text: "#081126",
+  placeholder: "rgba(0, 0, 0, 0.4)",
+} as const;
+
+export const Colors = {
+  light: colors,
+  dark: {
+    ...colors,
+    background: "#081126",
+    foreground: "#fff9e3",
+    card: "#1a2332",
+    muted: "#2a3442",
+    mutedForeground: "rgba(255, 255, 255, 0.6)",
+    border: "rgba(255, 255, 255, 0.1)",
+    icon: "#fff9e3",
+    text: "#fff9e3",
+    placeholder: "rgba(255, 255, 255, 0.4)",
+  },
 } as const;
 
 export const spacing = {
