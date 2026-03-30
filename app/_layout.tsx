@@ -8,6 +8,7 @@ import { PostHogProvider } from "posthog-react-native";
 import { useEffect } from "react";
 
 import { posthog } from "@/lib/posthog";
+import { SubscriptionProvider } from "@/lib/subscriptionStore";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -69,7 +70,9 @@ export default function RootLayout() {
       }}
     >
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <RootLayoutContent />
+        <SubscriptionProvider>
+          <RootLayoutContent />
+        </SubscriptionProvider>
       </ClerkProvider>
     </PostHogProvider>
   );
