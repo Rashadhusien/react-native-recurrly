@@ -46,7 +46,7 @@ export default function App() {
             </View>
 
             <View>
-              <ListHeading title="Upcoming " />
+              <ListHeading title="Upcoming" />
 
               <FlatList
                 data={UPCOMING_SUBSCRIPTIONS}
