@@ -38,6 +38,19 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PlusJakaraSnans-Regular .ttf",
+            "./assets/fonts/PlusJakaraSnans-Medium .ttf",
+            "./assets/fonts/PlusJakaraSnans-Light .ttf",
+            "./assets/fonts/PlusJakaraSnans-Bold .ttf",
+            "./assets/fonts/PlusJakaraSnans-SemiBold .ttf",
+            "./assets/fonts/PlusJakaraSnans-ExtraBold .ttf"
+          ]
+        }
       ]
     ],
     "experiments": {
