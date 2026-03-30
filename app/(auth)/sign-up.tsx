@@ -29,6 +29,7 @@ const SignUp = () => {
   // Validation states
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [verificationError, setVerificationError] = useState("");
 
   // Client-side validation
   const emailValid =
@@ -40,61 +41,80 @@ const SignUp = () => {
 
   const handleSubmit = async () => {
     if (!formValid) return;
-
-    const { error } = await signUp.password({
-      emailAddress,
-      password,
-    });
-
-    if (error) {
-      console.error(JSON.stringify(error, null, 2));
-      posthog.capture("user_sign_up_failed", {
-        error_message: error.message,
+    try {
+      const { error } = await signUp.password({
+        emailAddress,
+        password,
       });
-      return;
-    }
 
-    // Send verification email
-    if (!error) {
-      await signUp.verifications.sendEmailCode();
+      if (error) {
+        console.error(JSON.stringify(error, null, 2));
+        posthog.capture("user_sign_up_failed", {
+          error_message: error.message,
+        });
+        return;
+      }
+
+      // Send verification email
+      if (!error) {
+        await signUp.verifications.sendEmailCode();
+      }
+    } catch (error) {
+      console.error("Sign up error:", error);
+      posthog.capture("user_sign_up_failed", {
+        error_message: "Network error",
+      });
     }
   };
 
   const handleVerify = async () => {
-    await signUp.verifications.verifyEmailCode({
-      code,
-    });
+    setVerificationError("");
 
-    if (signUp.status === "complete") {
-      await signUp.finalize({
-        navigate: ({ session, decorateUrl }) => {
-          if (session?.currentTask) {
-            console.log(session?.currentTask);
-            return;
-          }
-
-          posthog.identify(emailAddress, {
-            $set: { email: emailAddress },
-            $set_once: { sign_up_date: new Date().toISOString() },
-          });
-          posthog.capture("user_signed_up", { email: emailAddress });
-
-          const url = decorateUrl("/(tabs)");
-          if (url.startsWith("http")) {
-            // Only use window.location on web platform
-            if (typeof window !== "undefined" && window.location) {
-              window.location.href = url;
-            } else {
-              // On native, just use router navigation
-              router.replace("/(tabs)" as Href);
-            }
-          } else {
-            router.replace(url as Href);
-          }
-        },
+    try {
+      await signUp.verifications.verifyEmailCode({
+        code,
       });
-    } else {
-      console.error("Sign-up attempt not complete:", signUp);
+
+      if (signUp.status === "complete") {
+        await signUp.finalize({
+          navigate: ({ session, decorateUrl }) => {
+            if (session?.currentTask) {
+              console.log(session?.currentTask);
+              return;
+            }
+
+            posthog.identify(emailAddress, {
+              $set: { email: emailAddress },
+              $set_once: { sign_up_date: new Date().toISOString() },
+            });
+            posthog.capture("user_signed_up", { email: emailAddress });
+
+            const url = decorateUrl("/(tabs)");
+            if (url.startsWith("http")) {
+              // Only use window.location on web platform
+              if (typeof window !== "undefined" && window.location) {
+                window.location.href = url;
+              } else {
+                // On native, just use router navigation
+                router.replace("/(tabs)" as Href);
+              }
+            } else {
+              router.replace(url as Href);
+            }
+          },
+        });
+      } else {
+        console.error("Sign-up attempt not complete:", signUp);
+        setVerificationError("Verification failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Email verification error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Invalid verification code";
+      setVerificationError(errorMessage);
+      posthog.capture("user_sign_up_verification_failed", {
+        error_message: errorMessage,
+      });
     }
   };
 
@@ -157,6 +177,9 @@ const SignUp = () => {
                       <Text className="auth-error">
                         {errors.fields.code.message}
                       </Text>
+                    )}
+                    {verificationError && (
+                      <Text className="auth-error">{verificationError}</Text>
                     )}
                   </View>
 

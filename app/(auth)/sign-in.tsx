@@ -28,6 +28,7 @@ const SignIn = () => {
   // Validation states
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [verificationError, setVerificationError] = useState("");
 
   // Client-side validation
   const emailValid =
@@ -39,99 +40,118 @@ const SignIn = () => {
 
   const handleSubmit = async () => {
     if (!formValid) return;
-
-    const { error } = await signIn.password({
-      emailAddress,
-      password,
-    });
-
-    if (error) {
-      console.error(JSON.stringify(error, null, 2));
-      posthog.capture("user_sign_in_failed", {
-        error_message: error.message,
+    try {
+      const { error } = await signIn.password({
+        emailAddress,
+        password,
       });
-      return;
-    }
 
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ session, decorateUrl }) => {
-          if (session?.currentTask) {
-            console.log(session?.currentTask);
-            return;
-          }
-
-          posthog.identify(emailAddress, {
-            $set: { email: emailAddress },
-            $set_once: { first_sign_in_date: new Date().toISOString() },
-          });
-          posthog.capture("user_signed_in", { email: emailAddress });
-
-          const url = decorateUrl("/(tabs)");
-          if (url.startsWith("http")) {
-            // Only use window.location on web platform
-            if (typeof window !== "undefined" && window.location) {
-              window.location.href = url;
-            } else {
-              // On native, just use router navigation
-              router.replace("/(tabs)" as Href);
-            }
-          } else {
-            router.replace(url as Href);
-          }
-        },
-      });
-    } else if (signIn.status === "needs_second_factor") {
-      // Handle MFA if needed (not implemented in this basic flow)
-      console.log("MFA required");
-    } else if (signIn.status === "needs_client_trust") {
-      // Send email code for client trust verification
-      const emailCodeFactor = signIn.supportedSecondFactors.find(
-        (factor) => factor.strategy === "email_code",
-      );
-
-      if (emailCodeFactor) {
-        await signIn.mfa.sendEmailCode();
+      if (error) {
+        console.error(JSON.stringify(error, null, 2));
+        posthog.capture("user_sign_in_failed", {
+          error_message: error.message,
+        });
+        return;
       }
-    } else {
-      console.error("Sign-in attempt not complete:", signIn);
+
+      if (signIn.status === "complete") {
+        await signIn.finalize({
+          navigate: ({ session, decorateUrl }) => {
+            if (session?.currentTask) {
+              console.log(session?.currentTask);
+              return;
+            }
+
+            posthog.identify(emailAddress, {
+              $set: { email: emailAddress },
+              $set_once: { first_sign_in_date: new Date().toISOString() },
+            });
+            posthog.capture("user_signed_in", { email: emailAddress });
+
+            const url = decorateUrl("/(tabs)");
+            if (url.startsWith("http")) {
+              // Only use window.location on web platform
+              if (typeof window !== "undefined" && window.location) {
+                window.location.href = url;
+              } else {
+                // On native, just use router navigation
+                router.replace("/(tabs)" as Href);
+              }
+            } else {
+              router.replace(url as Href);
+            }
+          },
+        });
+      } else if (signIn.status === "needs_second_factor") {
+        // Handle MFA if needed (not implemented in this basic flow)
+        console.log("MFA required");
+      } else if (signIn.status === "needs_client_trust") {
+        // Send email code for client trust verification
+        const emailCodeFactor = signIn.supportedSecondFactors.find(
+          (factor) => factor.strategy === "email_code",
+        );
+
+        if (emailCodeFactor) {
+          await signIn.mfa.sendEmailCode();
+        }
+      } else {
+        console.error("Sign-in attempt not complete:", signIn);
+      }
+    } catch (error) {
+      console.error("Sign-in error:", error);
+      posthog.capture("user_sign_in_failed", {
+        error_message: error instanceof Error ? error.message : String(error),
+      });
     }
   };
 
   const handleVerify = async () => {
-    await signIn.mfa.verifyEmailCode({ code });
+    setVerificationError("");
 
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ session, decorateUrl }) => {
-          if (session?.currentTask) {
-            console.log(session?.currentTask);
-            return;
-          }
+    try {
+      await signIn.mfa.verifyEmailCode({ code });
 
-          // Track successful sign-in after verification
-          posthog.identify(emailAddress, {
-            $set: { email: emailAddress },
-            $set_once: { first_sign_in_date: new Date().toISOString() },
-          });
-          posthog.capture("user_signed_in", { email: emailAddress });
-
-          const url = decorateUrl("/(tabs)");
-          if (url.startsWith("http")) {
-            // Only use window.location on web platform
-            if (typeof window !== "undefined" && window.location) {
-              window.location.href = url;
-            } else {
-              // On native, just use router navigation
-              router.replace("/(tabs)" as Href);
+      if (signIn.status === "complete") {
+        await signIn.finalize({
+          navigate: ({ session, decorateUrl }) => {
+            if (session?.currentTask) {
+              console.log(session?.currentTask);
+              return;
             }
-          } else {
-            router.replace(url as Href);
-          }
-        },
+
+            // Track successful sign-in after verification
+            posthog.identify(emailAddress, {
+              $set: { email: emailAddress },
+              $set_once: { first_sign_in_date: new Date().toISOString() },
+            });
+            posthog.capture("user_signed_in", { email: emailAddress });
+
+            const url = decorateUrl("/(tabs)");
+            if (url.startsWith("http")) {
+              // Only use window.location on web platform
+              if (typeof window !== "undefined" && window.location) {
+                window.location.href = url;
+              } else {
+                // On native, just use router navigation
+                router.replace("/(tabs)" as Href);
+              }
+            } else {
+              router.replace(url as Href);
+            }
+          },
+        });
+      } else {
+        console.error("Sign-in attempt not complete:", signIn);
+        setVerificationError("Verification failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("MFA verification error:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Invalid verification code";
+      setVerificationError(errorMessage);
+      posthog.capture("user_sign_in_verification_failed", {
+        error_message: errorMessage,
       });
-    } else {
-      console.error("Sign-in attempt not complete:", signIn);
     }
   };
 
@@ -185,6 +205,9 @@ const SignIn = () => {
                       <Text className="auth-error">
                         {errors.fields.code.message}
                       </Text>
+                    )}
+                    {verificationError && (
+                      <Text className="auth-error">{verificationError}</Text>
                     )}
                   </View>
 

@@ -28,7 +28,7 @@ export default function App() {
     user?.firstName ||
     user?.primaryEmailAddress?.emailAddress ||
     "User";
-  const userImage = user?.imageUrl || images.avatar;
+  const userImage = user?.imageUrl;
   return (
     <SafeAreaView className="flex-1  bg-background p-5">
       <FlatList
@@ -36,7 +36,10 @@ export default function App() {
           <>
             <View className="home-header">
               <View className="home-user">
-                <Image source={{ uri: userImage }} className="home-avatar" />
+                <Image
+                  source={userImage ? { uri: userImage } : images.avatar}
+                  className="home-avatar"
+                />
                 <Text className="home-user-name">{userName}</Text>
               </View>
               <Image source={icons.add} className="home-add-icon" />

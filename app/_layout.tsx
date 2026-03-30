@@ -1,4 +1,4 @@
-import { ClerkProvider } from "@clerk/expo";
+import { ClerkProvider, useAuth } from "@clerk/expo";
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -34,7 +34,8 @@ const tokenCache = {
   },
 };
 
-export default function RootLayout() {
+function RootLayoutContent() {
+  const { isLoaded: authLoaded } = useAuth();
   const [fontsloaded] = useFonts({
     "sans-regular": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
     "sans-medium": require("../assets/fonts/PlusJakartaSans-Medium.ttf"),
@@ -45,15 +46,19 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsloaded) {
+    if (fontsloaded && authLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [fontsloaded]);
+  }, [fontsloaded, authLoaded]);
 
-  if (!fontsloaded) {
+  if (!fontsloaded || !authLoaded) {
     return null;
   }
 
+  return <Stack screenOptions={{ headerShown: false }} />;
+}
+
+export default function RootLayout() {
   return (
     <PostHogProvider
       client={posthog}
@@ -64,7 +69,7 @@ export default function RootLayout() {
       }}
     >
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <Stack screenOptions={{ headerShown: false }} />
+        <RootLayoutContent />
       </ClerkProvider>
     </PostHogProvider>
   );
